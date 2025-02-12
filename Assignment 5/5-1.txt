@@ -1,0 +1,74 @@
+# Simulator: https://boginw.github.io/js-y86-64/
+
+# Execution begins at address 0
+.pos 0
+irmovq stack, %rsp # Set up stack pointer
+call main # Execute main program
+halt # Terminate program
+
+# Array of 4 elements
+.align 8
+array: .quad 0x000000000002
+.quad 0x000000000001
+.quad 0x000000000004
+.quad 0x000000000003
+
+main: irmovq array, %rdi  # load address of array into start (%rdi)
+irmovq $4, %rsi           # set count = 4
+call min                  # call min function
+ret                       # return
+
+
+# long min(long *start, long count) {
+#    if (count == 0) {
+#        return -1;
+#   }
+#    
+#    long result = *start;
+#    ++start;
+#    for (long i = count - 1; i != 0; --i) {
+#        long n = *start;
+#        if (n < result) {
+#            result = n;
+#        }
+#        ++start;
+#    }
+#    return result;
+#}
+
+# start in %rdi, count in %rsi
+# result in %rax, n in %rcx
+
+min:
+    andq %rsi, %rsi       # Check if count == 0 (count in %rsi)
+    je return_minus_one   # If count == 0, jump to return_minus_one
+
+    mrmovq (%rdi), %rax   # result = *start; load the first element (result in %rax)
+    iaddq $8, %rdi        # ++start, move to the next element (start in %rdi)
+    isubq $1, %rsi        # --count, decrement count (count in %rsi)
+
+test:
+    andq %rsi, %rsi       # Check if count == 0 (count in %rsi)
+    je return             # If count == 0, exit loop and return result
+
+    mrmovq (%rdi), %rcx   # n = *start, load the current element (n in %rcx)
+    cmpq %rcx, %rax       # Compare n (%rcx) with result (%rax)
+    jge skip_update       # If n >= result, skip updating result
+    rrmovq %rcx, %rax     # result = n, update result with n if n < result
+
+skip_update:
+    iaddq $8, %rdi        # ++start, move to the next element (start in %rdi)
+    isubq $1, %rsi        # --count, decrement count (count in %rsi)
+    jmp test              # Repeat the loop
+
+return:
+    ret                   # Return result (in %rax)
+
+return_minus_one:
+    irmovq $-1, %rax      # result = -1; return -1 if count == 0
+    ret                   # return
+
+# Stack starts here and grows to lower addresses
+.pos 0x200
+stack:
+
